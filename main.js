@@ -1,157 +1,117 @@
-const API_URL = 'https://raw.githubusercontent.com/HuyJLL/NNPTUDNgay2/main/db.json';
-const ITEMS_PER_PAGE = 10;
+const API_POSTS = 'http://localhost:3000/posts';
+const API_COMMENTS = 'http://localhost:3000/comments';
 
-let allProducts = [];
-let filteredProducts = [];
-let currentPage = 1;
-
-async function loadProducts() {
-    const loading = document.getElementById('loading');
-    const tableBody = document.getElementById('product-table-body');
-
+async function Load() {
     try {
-        const response = await fetch(API_URL);
-        if (!response.ok) throw new Error('Failed to fetch data');
+        let res = await fetch(API_POSTS);
+        let data = await res.json();
+        let body = document.getElementById("table-body");
+        body.innerHTML = "";
         
-        allProducts = await response.json();
-        filteredProducts = [...allProducts];
+        data.forEach(post => {
+            const style = post.isDeleted ? 'style="text-decoration: line-through; color: gray;"' : '';
+            const actionBtn = post.isDeleted 
+                ? `<button disabled>Deleted</button>` 
+                : `<input value="Delete" type="button" onclick="SoftDelete('${post.id}')" />`;
 
-        if (loading) loading.style.display = 'none';
-
-        renderPage();
-
-    } catch (error) {
-        console.error(error);
-        if (loading) loading.style.display = 'none';
-        tableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger py-4">Lỗi tải dữ liệu: ${error.message}</td></tr>`;
-    }
-}
-
-function renderTable(products) {
-    const tableBody = document.getElementById('product-table-body');
-    tableBody.innerHTML = '';
-
-    if (products.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-5 text-muted">Không tìm thấy sản phẩm nào</td></tr>';
-        return;
-    }
-
-    products.forEach(item => {
-        let imgUrl = (item.images && item.images.length > 0) ? item.images[0] : 'https://placehold.co/60?text=No+Img';
-        
-        if(imgUrl.startsWith('["')) {
-            imgUrl = imgUrl.replace('["', '').replace('"]', '');
-        }
-
-        const categoryName = item.category ? item.category.name : 'Uncategorized';
-        
-        // Cắt mô tả ngắn gọn
-        let shortDesc = item.description || '';
-        if (shortDesc.length > 60) shortDesc = shortDesc.substring(0, 60) + '...';
-
-        // ĐÃ SỬA THỨ TỰ CỘT TRONG ROW CHO KHỚP HTML
-        const row = `
-            <tr>
-                <td class="ps-3 fw-bold text-secondary">#${item.id}</td>
+            body.innerHTML += `
+            <tr ${style}>
+                <td>${post.id}</td>
+                <td>${post.title}</td>
+                <td>${post.views}</td>
                 <td>
-                    <img src="${imgUrl}" 
-                         class="table-img" 
-                         alt="${item.title}" 
-                         referrerpolicy="no-referrer"
-                         onerror="this.onerror=null; this.src='https://placehold.co/60?text=Err';">
+                    <button onclick="EditPost('${post.id}')">Edit</button>
+                    ${actionBtn}
                 </td>
-                <td class="fw-bold" style="color: #09637E;">${item.title}</td>
-                <td><span class="badge badge-custom">${categoryName}</span></td>
-                <td class="fw-bold" style="color: #088395;">$${item.price}</td>
-                <td class="text-muted small">${shortDesc}</td>
-            </tr>
-        `;
-        tableBody.innerHTML += row;
+            </tr>`;
+        });
+    } catch (error) {
+        console.error("Lỗi load dữ liệu:", error);
+    }
+}
+
+async function Save() {
+    let id = document.getElementById("id_txt").value;
+    let title = document.getElementById("title_txt").value;
+    let views = document.getElementById("views_txt").value;
+
+    if (id) {
+        await fetch(`${API_POSTS}/${id}`, {
+            method: 'PUT',
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ title, views, isDeleted: false })
+        });
+    } else {
+        let resAll = await fetch(API_POSTS);
+        let allPosts = await resAll.json();      
+        let maxId = allPosts.length > 0 ? Math.max(...allPosts.map(p => parseInt(p.id))) : 0;
+        let newId = (maxId + 1).toString();
+
+        await fetch(API_POSTS, {
+            method: 'POST',
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ id: newId, title, views, isDeleted: false })
+        });
+    }
+    resetForm();
+    Load();
+}
+
+async function SoftDelete(id) {
+    await fetch(`${API_POSTS}/${id}`, {
+        method: 'PATCH',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isDeleted: true })
     });
+    Load();
 }
 
-function renderPagination() {
-    const paginationContainer = document.getElementById('pagination');
-    paginationContainer.innerHTML = '';
-
-    const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
-
-    if (totalPages <= 1) return;
-
-    const prevClass = currentPage === 1 ? 'disabled' : '';
-    paginationContainer.innerHTML += `
-        <li class="page-item ${prevClass}">
-            <a class="page-link" onclick="changePage(${currentPage - 1})"><i class="fa-solid fa-chevron-left"></i></a>
-        </li>
-    `;
-
-    let startPage = Math.max(1, currentPage - 2);
-    let endPage = Math.min(totalPages, currentPage + 2);
-
-    if (startPage > 1) {
-        paginationContainer.innerHTML += `<li class="page-item"><a class="page-link" onclick="changePage(1)">1</a></li>`;
-        if (startPage > 2) paginationContainer.innerHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
-        const activeClass = i === currentPage ? 'active' : '';
-        paginationContainer.innerHTML += `
-            <li class="page-item ${activeClass}">
-                <a class="page-link" onclick="changePage(${i})">${i}</a>
-            </li>
-        `;
-    }
-
-    if (endPage < totalPages) {
-        if (endPage < totalPages - 1) paginationContainer.innerHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
-        paginationContainer.innerHTML += `<li class="page-item"><a class="page-link" onclick="changePage(${totalPages})">${totalPages}</a></li>`;
-    }
-
-    const nextClass = currentPage === totalPages ? 'disabled' : '';
-    paginationContainer.innerHTML += `
-        <li class="page-item ${nextClass}">
-            <a class="page-link" onclick="changePage(${currentPage + 1})"><i class="fa-solid fa-chevron-right"></i></a>
-        </li>
-    `;
+async function EditPost(id) {
+    let res = await fetch(`${API_POSTS}/${id}`);
+    let post = await res.json();
+    document.getElementById("id_txt").value = post.id;
+    document.getElementById("title_txt").value = post.title;
+    document.getElementById("views_txt").value = post.views;
 }
 
-function changePage(page) {
-    const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
-    if (page < 1 || page > totalPages) return;
+function resetForm() {
+    document.getElementById("id_txt").value = "";
+    document.getElementById("title_txt").value = "";
+    document.getElementById("views_txt").value = "";
+}
+
+async function LoadComments() {
+    let res = await fetch(API_COMMENTS);
+    let data = await res.json();
+    let list = document.getElementById("comment-list");
+    list.innerHTML = data.map(c => `
+        <li>
+            PostID: ${c.postId} - ${c.text} 
+            <button onclick="DeleteComment('${c.id}')">Xóa</button>
+        </li>
+    `).join('');
+}
+
+async function AddComment() {
+    let postId = document.getElementById("cmt_post_id").value;
+    let text = document.getElementById("cmt_text").value;
     
-    currentPage = page;
-    renderPage();
+    let resAll = await fetch(API_COMMENTS);
+    let allCmts = await resAll.json();
+    let maxId = allCmts.length > 0 ? Math.max(...allCmts.map(c => parseInt(c.id))) : 0;
+
+    await fetch(API_COMMENTS, {
+        method: 'POST',
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: (maxId + 1).toString(), text, postId })
+    });
+    LoadComments();
 }
 
-function renderPage() {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    const end = start + ITEMS_PER_PAGE;
-    const paginatedItems = filteredProducts.slice(start, end);
-
-    renderTable(paginatedItems);
-    renderPagination();
+async function DeleteComment(id) {
+    await fetch(`${API_COMMENTS}/${id}`, { method: 'DELETE' });
+    LoadComments();
 }
 
-function processData() {
-    const searchTerm = document.getElementById('search-input').value.toLowerCase();
-    const sortValue = document.getElementById('sort-select').value;
-
-    filteredProducts = allProducts.filter(p => 
-        p.title && p.title.toLowerCase().includes(searchTerm)
-    );
-
-    if (sortValue === 'name-asc') {
-        filteredProducts.sort((a, b) => a.title.localeCompare(b.title));
-    } else if (sortValue === 'name-desc') {
-        filteredProducts.sort((a, b) => b.title.localeCompare(a.title));
-    } else if (sortValue === 'price-asc') {
-        filteredProducts.sort((a, b) => a.price - b.price);
-    } else if (sortValue === 'price-desc') {
-        filteredProducts.sort((a, b) => b.price - a.price);
-    }
-
-    currentPage = 1;
-    renderPage();
-}
-
-document.addEventListener('DOMContentLoaded', loadProducts);
+Load();
+LoadComments();
