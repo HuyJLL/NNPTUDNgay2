@@ -4,6 +4,10 @@ const ITEMS_PER_PAGE = 10;
 let allProducts = [];
 let filteredProducts = [];
 let currentPage = 1;
+let currentSort = {
+    column: 'default',
+    order: 'asc'
+};
 
 async function loadProducts() {
     const loading = document.getElementById('loading');
@@ -45,11 +49,9 @@ function renderTable(products) {
 
         const categoryName = item.category ? item.category.name : 'Uncategorized';
         
-        // Cắt mô tả ngắn gọn
         let shortDesc = item.description || '';
         if (shortDesc.length > 60) shortDesc = shortDesc.substring(0, 60) + '...';
 
-        // ĐÃ SỬA THỨ TỰ CỘT TRONG ROW CHO KHỚP HTML
         const row = `
             <tr>
                 <td class="ps-3 fw-bold text-secondary">#${item.id}</td>
@@ -132,22 +134,60 @@ function renderPage() {
     renderPagination();
 }
 
+function toggleSort(column) {
+    if (currentSort.column === column) {
+        currentSort.order = currentSort.order === 'asc' ? 'desc' : 'asc';
+    } else {
+        currentSort.column = column;
+        currentSort.order = 'asc';
+    }
+
+    updateSortUI();
+    processData();
+}
+
+function updateSortUI() {
+    const btnName = document.getElementById('btn-sort-name');
+    const btnPrice = document.getElementById('btn-sort-price');
+
+    btnName.className = 'btn btn-outline-secondary fw-bold';
+    btnName.innerHTML = 'Tên <i class="fa-solid fa-sort ms-1"></i>';
+    
+    btnPrice.className = 'btn btn-outline-secondary fw-bold';
+    btnPrice.innerHTML = 'Giá <i class="fa-solid fa-sort ms-1"></i>';
+
+    const iconClass = currentSort.order === 'asc' ? 'fa-sort-up' : 'fa-sort-down';
+    
+    if (currentSort.column === 'name') {
+        btnName.className = 'btn btn-info text-white fw-bold';
+        btnName.innerHTML = `Tên <i class="fa-solid ${iconClass} ms-1"></i>`;
+    } 
+    else if (currentSort.column === 'price') {
+        btnPrice.className = 'btn btn-info text-white fw-bold';
+        btnPrice.innerHTML = `Giá <i class="fa-solid ${iconClass} ms-1"></i>`;
+    }
+}
+
 function processData() {
     const searchTerm = document.getElementById('search-input').value.toLowerCase();
-    const sortValue = document.getElementById('sort-select').value;
 
     filteredProducts = allProducts.filter(p => 
         p.title && p.title.toLowerCase().includes(searchTerm)
     );
 
-    if (sortValue === 'name-asc') {
-        filteredProducts.sort((a, b) => a.title.localeCompare(b.title));
-    } else if (sortValue === 'name-desc') {
-        filteredProducts.sort((a, b) => b.title.localeCompare(a.title));
-    } else if (sortValue === 'price-asc') {
-        filteredProducts.sort((a, b) => a.price - b.price);
-    } else if (sortValue === 'price-desc') {
-        filteredProducts.sort((a, b) => b.price - a.price);
+    if (currentSort.column === 'name') {
+        filteredProducts.sort((a, b) => {
+            const titleA = a.title.toLowerCase();
+            const titleB = b.title.toLowerCase();
+            if (currentSort.order === 'asc') return titleA.localeCompare(titleB);
+            else return titleB.localeCompare(titleA);
+        });
+    } 
+    else if (currentSort.column === 'price') {
+        filteredProducts.sort((a, b) => {
+            if (currentSort.order === 'asc') return a.price - b.price;
+            else return b.price - a.price;
+        });
     }
 
     currentPage = 1;

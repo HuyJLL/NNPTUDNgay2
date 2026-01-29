@@ -126,18 +126,16 @@
                         <input type="text" id="search-input" class="form-control" placeholder="Tìm kiếm sản phẩm..." oninput="processData()">
                     </div>
                 </div>
-                <div class="col-md-4">
-                    <div class="input-group">
-                        <span class="input-group-text bg-white"><i class="fa-solid fa-filter text-muted"></i></span>
-                        <select id="sort-select" class="form-select" onchange="processData()">
-                            <option value="default">Mặc định</option>
-                            <option value="name-asc">Tên (A-Z)</option>
-                            <option value="name-desc">Tên (Z-A)</option>
-                            <option value="price-asc">Giá (Thấp - Cao)</option>
-                            <option value="price-desc">Giá (Cao - Thấp)</option>
-                        </select>
-                    </div>
-                </div>
+                <div class="col-md-4 text-end">
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-outline-secondary fw-bold" onclick="toggleSort('name')" id="btn-sort-name">
+            Tên <i class="fa-solid fa-sort ms-1"></i>
+        </button>
+        <button type="button" class="btn btn-outline-secondary fw-bold" onclick="toggleSort('price')" id="btn-sort-price">
+            Giá <i class="fa-solid fa-sort ms-1"></i>
+        </button>
+    </div>
+</div>
             </div>
 
             <div class="table-responsive">
